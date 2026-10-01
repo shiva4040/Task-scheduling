@@ -1,0 +1,5 @@
+<resources>
+    <string name="app_name">Task Scheduling</string>
+    <string name="app_tagline">Predefined-Coordinate Phone Automation</string>
+    <string name="accessibility_service_description">Task Scheduling uses accessibility access to perform real coordinate-based gestures and overlay touch indicators for automated workflows on your device.</string>
+</resources>
