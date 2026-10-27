@@ -15,6 +15,7 @@ import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
+import com.taskscheduling.app.domain.catalog.ActionCatalog
 
 data class RecordingSession(
     val sessionId: String,
@@ -63,7 +64,10 @@ class WorkflowPersistenceRepository(private val baseDir: File) {
     }
 
     private fun loadAllWorkflows() {
-        if (!workflowsFile.exists()) return
+        if (!workflowsFile.exists()) {
+            ActionCatalog.syncWithWorkflows(emptyList())
+            return
+        }
         try {
             val jsonStr = workflowsFile.readText()
             val jsonArray = JSONArray(jsonStr)
@@ -74,6 +78,7 @@ class WorkflowPersistenceRepository(private val baseDir: File) {
                 map[wf.id] = wf
             }
             _workflows.value = map
+            ActionCatalog.syncWithWorkflows(map.values.toList())
         } catch (e: Exception) {
             e.printStackTrace()
         }
@@ -95,11 +100,43 @@ class WorkflowPersistenceRepository(private val baseDir: File) {
         }
     }
 
-    suspend fun saveWorkflow(workflow: Workflow) = withContext(Dispatchers.IO) {
+    suspend fun saveWorkflow(workflow: Workflow): Workflow = withContext(Dispatchers.IO) {
+        val safeName = if (workflow.name.isBlank()) {
+            val count = _workflows.value.size + 1
+            "Workflow $count"
+        } else {
+            workflow.name.trim()
+        }
+        val workflowToSave = if (workflow.name != safeName) {
+            workflow.copy(name = safeName)
+        } else {
+            workflow
+        }
         val updated = _workflows.value.toMutableMap()
-        updated[workflow.id] = workflow
+        updated[workflowToSave.id] = workflowToSave
         _workflows.value = updated
+        ActionCatalog.syncWithWorkflows(updated.values.toList())
         persistWorkflows(updated.values.toList())
+        workflowToSave
+    }
+
+    suspend fun renameWorkflow(id: String, newName: String): Workflow? = withContext(Dispatchers.IO) {
+        val existing = _workflows.value[id] ?: return@withContext null
+        val safeName = if (newName.isBlank()) {
+            existing.name.ifBlank { "Workflow ${_workflows.value.size}" }
+        } else {
+            newName.trim()
+        }
+        val updatedWorkflow = existing.copy(
+            name = safeName,
+            updatedAt = System.currentTimeMillis()
+        )
+        val updated = _workflows.value.toMutableMap()
+        updated[id] = updatedWorkflow
+        _workflows.value = updated
+        ActionCatalog.syncWithWorkflows(updated.values.toList())
+        persistWorkflows(updated.values.toList())
+        updatedWorkflow
     }
 
     fun getWorkflow(id: String): Workflow? {
@@ -114,6 +151,7 @@ class WorkflowPersistenceRepository(private val baseDir: File) {
         val updated = _workflows.value.toMutableMap()
         updated.remove(id)
         _workflows.value = updated
+        ActionCatalog.syncWithWorkflows(updated.values.toList())
         persistWorkflows(updated.values.toList())
     }
 
@@ -230,14 +268,35 @@ class WorkflowPersistenceRepository(private val baseDir: File) {
                     stepsArr.put(JSONObject().apply {
                         put("id", s.id)
                         put("order", s.order)
-                        put("type", s.type.name)
-                        put("startX", s.startX)
-                        put("startY", s.startY)
-                        if (s.endX != null) put("endX", s.endX)
-                        if (s.endY != null) put("endY", s.endY)
-                        put("duration", s.duration)
-                        put("waitAfter", s.waitAfter)
-                        put("description", s.description)
+                        val effectiveType = s.actionType
+                        val startX = s.coordinate?.x ?: s.startX
+                        val startY = s.coordinate?.y ?: s.startY
+                        val endX = s.coordinate?.endX ?: s.endX
+                        val endY = s.coordinate?.endY ?: s.endY
+                        val duration = if (s.durationMs != 100L) s.durationMs else s.duration
+                        val waitAfter = if (s.waitDurationMs != 500L) s.waitDurationMs else s.waitAfter
+
+                        put("type", effectiveType.name)
+                        put("startX", startX)
+                        put("startY", startY)
+                        if (endX != null) put("endX", endX)
+                        if (endY != null) put("endY", endY)
+                        put("duration", duration)
+                        put("waitAfter", waitAfter)
+                        val desc = if (s.label.isNotBlank()) s.label else s.description
+                        put("description", desc)
+                        put("label", desc)
+                        if (s.targetScreen != null) put("targetScreen", s.targetScreen)
+                        if (s.targetElement != null) put("targetElement", s.targetElement)
+                        if (s.targetDescription != null) put("targetDescription", s.targetDescription)
+                        if (s.textInput != null) put("textInput", s.textInput)
+                        put("timeoutMs", s.timeoutMs)
+                        if (s.expectedScreenState != null) put("expectedScreenState", s.expectedScreenState)
+                        put("verificationRule", s.verificationRule)
+                        put("retryLimit", s.retryLimit)
+                        put("recoveryBehavior", s.recoveryBehavior)
+                        put("isVerified", s.isVerified)
+                        put("requiresPermission", s.requiresPermission)
                     })
                 }
                 put("steps", stepsArr)
@@ -270,23 +329,55 @@ class WorkflowPersistenceRepository(private val baseDir: File) {
                     val startY = sObj.optInt("startY", 0)
                     val endX = if (sObj.has("endX")) sObj.getInt("endX") else null
                     val endY = if (sObj.has("endY")) sObj.getInt("endY") else null
+                    val duration = sObj.optLong("duration", 100L)
+                    val waitAfter = sObj.optLong("waitAfter", 500L)
+                    val desc = if (sObj.has("label") && sObj.getString("label").isNotBlank()) {
+                        sObj.getString("label")
+                    } else {
+                        sObj.optString("description", "")
+                    }
+                    val targetScreen = if (sObj.has("targetScreen")) sObj.getString("targetScreen") else null
+                    val targetElement = if (sObj.has("targetElement")) sObj.getString("targetElement") else null
+                    val targetDesc = if (sObj.has("targetDescription")) sObj.getString("targetDescription") else null
+                    val textInput = if (sObj.has("textInput")) sObj.getString("textInput") else null
+                    val timeoutMs = sObj.optLong("timeoutMs", 5000L)
+                    val expectedScreenState = if (sObj.has("expectedScreenState")) sObj.getString("expectedScreenState") else null
+                    val verificationRule = sObj.optString("verificationRule", "NONE")
+                    val retryLimit = sObj.optInt("retryLimit", 0)
+                    val recoveryBehavior = sObj.optString("recoveryBehavior", "STOP_ON_FAILURE")
+                    val isVerified = sObj.optBoolean("isVerified", false)
+                    val requiresPermission = sObj.optBoolean("requiresPermission", false)
 
                     stepsList.add(
                         WorkflowStep(
-                            id = sObj.optString("id"),
+                            id = sObj.optString("id", java.util.UUID.randomUUID().toString()),
                             order = sObj.optInt("order", i + 1),
                             type = actionType,
                             startX = startX,
                             startY = startY,
                             endX = endX,
                             endY = endY,
-                            duration = sObj.optLong("duration", 100L),
-                            waitAfter = sObj.optLong("waitAfter", 500L),
-                            description = sObj.optString("description", ""),
+                            duration = duration,
+                            waitAfter = waitAfter,
+                            description = desc,
                             stepNumber = sObj.optInt("order", i + 1),
-                            label = sObj.optString("description", ""),
+                            label = if (desc.isNotBlank()) desc else "Step ${i + 1}",
                             actionType = actionType,
-                            coordinate = CoordinateAction(startX, startY, endX, endY)
+                            coordinate = CoordinateAction(startX, startY, endX, endY),
+                            durationMs = duration,
+                            explanation = desc,
+                            targetScreen = targetScreen,
+                            targetElement = targetElement,
+                            targetDescription = targetDesc,
+                            textInput = textInput,
+                            waitDurationMs = waitAfter,
+                            timeoutMs = timeoutMs,
+                            expectedScreenState = expectedScreenState,
+                            verificationRule = verificationRule,
+                            retryLimit = retryLimit,
+                            recoveryBehavior = recoveryBehavior,
+                            isVerified = isVerified,
+                            requiresPermission = requiresPermission
                         )
                     )
                 }
@@ -297,8 +388,8 @@ class WorkflowPersistenceRepository(private val baseDir: File) {
             val schemaVersion = obj.optInt("schemaVersion", 1)
 
             return Workflow(
-                id = obj.getString("id"),
-                name = obj.getString("name"),
+                id = obj.optString("id", java.util.UUID.randomUUID().toString()),
+                name = obj.optString("name", "Unnamed Workflow"),
                 description = obj.optString("description", ""),
                 createdAt = obj.optLong("createdAt", System.currentTimeMillis()),
                 updatedAt = obj.optLong("updatedAt", System.currentTimeMillis()),
@@ -326,16 +417,16 @@ class WorkflowPersistenceRepository(private val baseDir: File) {
 
         fun jsonToHistory(obj: JSONObject): ExecutionHistoryItem {
             return ExecutionHistoryItem(
-                id = obj.getString("id"),
-                workflowId = obj.getString("workflowId"),
-                workflowName = obj.getString("workflowName"),
-                timestamp = obj.getLong("timestamp"),
-                formattedTime = obj.getString("formattedTime"),
-                status = obj.getString("status"),
-                completedSteps = obj.getInt("completedSteps"),
-                totalSteps = obj.getInt("totalSteps"),
-                failedStep = if (obj.has("failedStep")) obj.getInt("failedStep") else null,
-                failureReason = if (obj.has("failureReason")) obj.getString("failureReason") else null
+                id = obj.optString("id", java.util.UUID.randomUUID().toString()),
+                workflowId = obj.optString("workflowId", ""),
+                workflowName = obj.optString("workflowName", "Workflow"),
+                timestamp = obj.optLong("timestamp", System.currentTimeMillis()),
+                formattedTime = obj.optString("formattedTime", ""),
+                status = obj.optString("status", "UNKNOWN"),
+                completedSteps = obj.optInt("completedSteps", 0),
+                totalSteps = obj.optInt("totalSteps", 0),
+                failedStep = if (obj.has("failedStep")) obj.optInt("failedStep") else null,
+                failureReason = if (obj.has("failureReason")) obj.optString("failureReason") else null
             )
         }
 
@@ -377,6 +468,17 @@ class WorkflowPersistenceRepository(private val baseDir: File) {
                         put("duration", s.duration)
                         put("waitAfter", s.waitAfter)
                         put("description", s.description)
+                        if (s.targetScreen != null) put("targetScreen", s.targetScreen)
+                        if (s.targetElement != null) put("targetElement", s.targetElement)
+                        if (s.targetDescription != null) put("targetDescription", s.targetDescription)
+                        if (s.textInput != null) put("textInput", s.textInput)
+                        put("timeoutMs", s.timeoutMs)
+                        if (s.expectedScreenState != null) put("expectedScreenState", s.expectedScreenState)
+                        put("verificationRule", s.verificationRule)
+                        put("retryLimit", s.retryLimit)
+                        put("recoveryBehavior", s.recoveryBehavior)
+                        put("isVerified", s.isVerified)
+                        put("requiresPermission", s.requiresPermission)
                     })
                 }
                 put("steps", stepsArr)
@@ -409,23 +511,51 @@ class WorkflowPersistenceRepository(private val baseDir: File) {
                     val startY = sObj.optInt("startY", 0)
                     val endX = if (sObj.has("endX")) sObj.getInt("endX") else null
                     val endY = if (sObj.has("endY")) sObj.getInt("endY") else null
+                    val duration = sObj.optLong("duration", 100L)
+                    val waitAfter = sObj.optLong("waitAfter", 500L)
+                    val desc = sObj.optString("description", "")
+                    val targetScreen = if (sObj.has("targetScreen")) sObj.getString("targetScreen") else null
+                    val targetElement = if (sObj.has("targetElement")) sObj.getString("targetElement") else null
+                    val targetDesc = if (sObj.has("targetDescription")) sObj.getString("targetDescription") else null
+                    val textInput = if (sObj.has("textInput")) sObj.getString("textInput") else null
+                    val timeoutMs = sObj.optLong("timeoutMs", 5000L)
+                    val expectedScreenState = if (sObj.has("expectedScreenState")) sObj.getString("expectedScreenState") else null
+                    val verificationRule = sObj.optString("verificationRule", "NONE")
+                    val retryLimit = sObj.optInt("retryLimit", 0)
+                    val recoveryBehavior = sObj.optString("recoveryBehavior", "STOP_ON_FAILURE")
+                    val isVerified = sObj.optBoolean("isVerified", false)
+                    val requiresPermission = sObj.optBoolean("requiresPermission", false)
 
                     stepsList.add(
                         WorkflowStep(
-                            id = sObj.optString("id"),
+                            id = sObj.optString("id", java.util.UUID.randomUUID().toString()),
                             order = sObj.optInt("order", i + 1),
                             type = actionType,
                             startX = startX,
                             startY = startY,
                             endX = endX,
                             endY = endY,
-                            duration = sObj.optLong("duration", 100L),
-                            waitAfter = sObj.optLong("waitAfter", 500L),
-                            description = sObj.optString("description", ""),
+                            duration = duration,
+                            waitAfter = waitAfter,
+                            description = desc,
                             stepNumber = sObj.optInt("order", i + 1),
-                            label = sObj.optString("description", ""),
+                            label = if (desc.isNotBlank()) desc else "Step ${i + 1}",
                             actionType = actionType,
-                            coordinate = CoordinateAction(startX, startY, endX, endY)
+                            coordinate = CoordinateAction(startX, startY, endX, endY),
+                            durationMs = duration,
+                            explanation = desc,
+                            targetScreen = targetScreen,
+                            targetElement = targetElement,
+                            targetDescription = targetDesc,
+                            textInput = textInput,
+                            waitDurationMs = waitAfter,
+                            timeoutMs = timeoutMs,
+                            expectedScreenState = expectedScreenState,
+                            verificationRule = verificationRule,
+                            retryLimit = retryLimit,
+                            recoveryBehavior = recoveryBehavior,
+                            isVerified = isVerified,
+                            requiresPermission = requiresPermission
                         )
                     )
                 }
@@ -440,8 +570,8 @@ class WorkflowPersistenceRepository(private val baseDir: File) {
 
             return RecordingSession(
                 sessionId = obj.optString("sessionId", "session_unknown"),
-                workflowId = obj.optString("workflowId", "wf_wallpaper"),
-                workflowName = obj.optString("workflowName", "Change Wallpaper"),
+                workflowId = obj.optString("workflowId", "wf_custom"),
+                workflowName = obj.optString("workflowName", "Custom Workflow"),
                 startedAt = obj.optLong("startedAt", System.currentTimeMillis()),
                 updatedAt = obj.optLong("updatedAt", System.currentTimeMillis()),
                 lastSavedAt = obj.optLong("lastSavedAt", obj.optLong("updatedAt", System.currentTimeMillis())),

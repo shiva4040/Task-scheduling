@@ -24,24 +24,6 @@ object MockDataProvider {
     val tasks: List<Task> by lazy {
         listOf(
             Task(
-                id = "task_wallpaper",
-                title = "Change Wallpaper",
-                description = "Navigates to Settings, selects Wallpaper & Style, picks Sunset theme, and applies it.",
-                category = TaskCategory.SETTINGS,
-                type = TaskType.COORDINATE_WORKFLOW,
-                iconName = "wallpaper",
-                voiceTriggers = listOf("change wallpaper", "new background", "set wallpaper", "wallpaper"),
-                isFavorite = true,
-                workflow = Workflow(
-                    id = "wf_wallpaper",
-                    name = "Change Wallpaper",
-                    description = "Personalized wallpaper changing sequence calibrated from your real device",
-                    status = com.taskscheduling.app.domain.model.WorkflowStatus.NOT_CALIBRATED,
-                    deviceProfile = null,
-                    steps = emptyList()
-                )
-            ),
-            Task(
                 id = "task_dark_mode",
                 title = "Turn On Dark Mode",
                 description = "Pulls down notification shade and toggles Dark Theme quick switch.",
@@ -481,17 +463,15 @@ object MockDataProvider {
         listOf(
             ActivityRecord(
                 id = "act_1",
-                taskTitle = "Change Wallpaper",
+                taskTitle = "Turn On Wi-Fi",
                 timestamp = "Today, 10:32 AM",
-                durationText = "2.4s",
+                durationText = "1.5s",
                 status = ActivityStatus.COMPLETED,
-                stepCount = 5,
+                stepCount = 3,
                 logs = listOf(
-                    ExecutionLogEntry("10:32:01", 1, ActionType.TAP, "Tap Settings (880, 1600)", "SUCCESS", 420),
-                    ExecutionLogEntry("10:32:02", 2, ActionType.TAP, "Tap Wallpaper (540, 770)", "SUCCESS", 390),
-                    ExecutionLogEntry("10:32:02", 3, ActionType.TAP, "Select Sunset (540, 1200)", "SUCCESS", 410),
-                    ExecutionLogEntry("10:32:03", 4, ActionType.TAP, "Apply (540, 1600)", "SUCCESS", 450),
-                    ExecutionLogEntry("10:32:03", 5, ActionType.HOME, "Home (540, 2300)", "SUCCESS", 320)
+                    ExecutionLogEntry("10:32:01", 1, ActionType.SWIPE, "Swipe down quick settings", "SUCCESS", 420),
+                    ExecutionLogEntry("10:32:02", 2, ActionType.TAP, "Tap Wi-Fi toggle", "SUCCESS", 390),
+                    ExecutionLogEntry("10:32:02", 3, ActionType.HOME, "Home", "SUCCESS", 320)
                 )
             ),
             ActivityRecord(

@@ -26,10 +26,10 @@ class MockVoiceEngine(
         delay(1800) // Simulated listening duration
         
         _voiceState.value = VoiceState.PROCESSING
-        _recognizedText.value = "Change my wallpaper"
+        _recognizedText.value = "Turn on dark mode"
         delay(800)
 
-        val matched = taskLookup("Change my wallpaper")
+        val matched = taskLookup("Turn on dark mode")
         if (matched != null) {
             _voiceState.value = VoiceState.COMPLETED
         } else {

@@ -17,6 +17,7 @@ enum class ActionType(val label: String) {
     DRAG("Drag"),
     HOME("Home"),
     RECENTS("Recents"),
+    TEXT_INPUT("Text Input"),
     CUSTOM_GESTURE("Custom Gesture")
 }
 
@@ -58,14 +59,25 @@ data class WorkflowStep(
     val duration: Long = 100L,
     val waitAfter: Long = 500L,
     val description: String = "",
-    // Backwards compatibility properties:
+    // Backwards compatibility & expanded editor properties:
     val stepNumber: Int = order,
-    val label: String = description,
+    val label: String = if (description.isNotBlank()) description else "Step $order",
     val actionType: ActionType = type,
     val coordinate: CoordinateAction? = CoordinateAction(startX, startY, endX, endY),
     val durationMs: Long = duration,
     val explanation: String = description,
-    val targetScreen: String? = null
+    val targetScreen: String? = null,
+    val targetElement: String? = null,
+    val targetDescription: String? = null,
+    val textInput: String? = null,
+    val waitDurationMs: Long = waitAfter,
+    val timeoutMs: Long = 5000L,
+    val expectedScreenState: String? = null,
+    val verificationRule: String = "NONE",
+    val retryLimit: Int = 0,
+    val recoveryBehavior: String = "STOP_ON_FAILURE",
+    val isVerified: Boolean = false,
+    val requiresPermission: Boolean = false
 ) {
     // Secondary constructor for existing codebase usages
     constructor(
@@ -96,14 +108,106 @@ data class WorkflowStep(
         explanation = explanation,
         targetScreen = targetScreen
     )
+
+    /**
+     * Checks if this step requires real physical screen coordinates.
+     */
+    val requiresCoordinates: Boolean
+        get() = actionType in listOf(
+            ActionType.TAP,
+            ActionType.LONG_PRESS,
+            ActionType.DOUBLE_TAP,
+            ActionType.SWIPE,
+            ActionType.DRAG
+        )
+
+    /**
+     * Checks if coordinates have been configured and are non-zero.
+     */
+    val hasValidCoordinates: Boolean
+        get() {
+            if (!requiresCoordinates) return true
+            val cx = coordinate?.x ?: startX
+            val cy = coordinate?.y ?: startY
+            if (cx <= 0 && cy <= 0) return false
+            if (actionType == ActionType.SWIPE || actionType == ActionType.DRAG) {
+                val ex = coordinate?.endX ?: endX ?: return false
+                val ey = coordinate?.endY ?: endY ?: return false
+                if (ex <= 0 && ey <= 0) return false
+            }
+            return true
+        }
+
+    /**
+     * Helper to clone the step while ensuring all dual-represented properties stay in sync.
+     */
+    fun copyWithSync(
+        label: String? = null,
+        actionType: ActionType? = null,
+        coordinate: CoordinateAction? = null,
+        durationMs: Long? = null,
+        targetScreen: String? = null,
+        targetElement: String? = null,
+        targetDescription: String? = null,
+        textInput: String? = null,
+        waitDurationMs: Long? = null,
+        timeoutMs: Long? = null,
+        expectedScreenState: String? = null,
+        verificationRule: String? = null,
+        retryLimit: Int? = null,
+        recoveryBehavior: String? = null,
+        isVerified: Boolean? = null,
+        requiresPermission: Boolean? = null,
+        stepNumber: Int? = null
+    ): WorkflowStep {
+        val newOrder = stepNumber ?: this.stepNumber
+        val newActionType = actionType ?: this.actionType
+        val newLabel = label ?: this.label
+        val newCoord = coordinate ?: this.coordinate ?: CoordinateAction(this.startX, this.startY, this.endX, this.endY)
+        val newDuration = durationMs ?: this.durationMs
+        val newWait = waitDurationMs ?: this.waitDurationMs
+
+        return this.copy(
+            order = newOrder,
+            type = newActionType,
+            startX = newCoord.x,
+            startY = newCoord.y,
+            endX = newCoord.endX,
+            endY = newCoord.endY,
+            duration = newDuration,
+            waitAfter = newWait,
+            description = newLabel,
+            stepNumber = newOrder,
+            label = newLabel,
+            actionType = newActionType,
+            coordinate = newCoord,
+            durationMs = newDuration,
+            explanation = newLabel,
+            targetScreen = targetScreen ?: this.targetScreen,
+            targetElement = targetElement ?: this.targetElement,
+            targetDescription = targetDescription ?: this.targetDescription,
+            textInput = textInput ?: this.textInput,
+            waitDurationMs = newWait,
+            timeoutMs = timeoutMs ?: this.timeoutMs,
+            expectedScreenState = expectedScreenState ?: this.expectedScreenState,
+            verificationRule = verificationRule ?: this.verificationRule,
+            retryLimit = retryLimit ?: this.retryLimit,
+            recoveryBehavior = recoveryBehavior ?: this.recoveryBehavior,
+            isVerified = isVerified ?: this.isVerified,
+            requiresPermission = requiresPermission ?: this.requiresPermission
+        )
+    }
 }
 
 enum class SessionState {
     IDLE,
     RECORDING,
     PAUSED,
+    FINISHING,
     REVIEW,
-    SAVED
+    SAVED,
+    CANCELLED,
+    ERROR
 }
 
 data class Workflow(

@@ -71,12 +71,25 @@ enum class ThemeMode {
 }
 
 data class AppSettings(
-    val themeMode: ThemeMode = ThemeMode.DARK,
+    val themeMode: ThemeMode = ThemeMode.LIGHT,
     val executionSpeed: Float = 1.0f,
     val confirmBeforeExecution: Boolean = false,
     val stopOnError: Boolean = true,
     val notificationsEnabled: Boolean = true,
-    val language: String = "English (US)"
+    val language: String = "English (US)",
+    val speechEngine: String = "WHISPER_LARGE_V3_TURBO",
+    val accentColorName: String = "Indigo",
+    val fontSizeScale: Float = 1.0f,
+    val reducedMotion: Boolean = false,
+    val overlayOrbEnabled: Boolean = true,
+    val floatingOrbSizeDp: Int = 56,
+    val floatingOrbOpacity: Float = 0.95f,
+    val hapticFeedbackEnabled: Boolean = true,
+    val stepDelayMs: Long = 500L,
+    val stepTimeoutSeconds: Int = 15,
+    val autoClearCompletedTasks: Boolean = false,
+    val userName: String = "Shiva",
+    val userEmail: String = "shiva@taskscheduling.local"
 )
 
 data class UseCaseItem(

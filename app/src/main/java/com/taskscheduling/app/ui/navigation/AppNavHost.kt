@@ -1,6 +1,8 @@
 package com.taskscheduling.app.ui.navigation
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.navigation.NavHostController
@@ -8,6 +10,7 @@ import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
+import com.taskscheduling.app.assistant.TaskNotificationScheduler
 import com.taskscheduling.app.automation.mock.MockAutomationEngine
 import com.taskscheduling.app.automation.mock.MockVoiceEngine
 import com.taskscheduling.app.data.repository.ActivityRepositoryImpl
@@ -34,7 +37,9 @@ import com.taskscheduling.app.feature.scheduler.SchedulerScreen
 import com.taskscheduling.app.feature.scheduler.SchedulerViewModel
 import com.taskscheduling.app.feature.settings.SettingsScreen
 import com.taskscheduling.app.feature.settings.SettingsViewModel
+import com.taskscheduling.app.feature.tasks.AddEditTaskScreen
 import com.taskscheduling.app.feature.tasks.CreateTaskFlowScreen
+import com.taskscheduling.app.feature.tasks.CreateWorkflowScreen
 import com.taskscheduling.app.feature.tasks.TasksScreen
 import com.taskscheduling.app.feature.tasks.TasksViewModel
 import com.taskscheduling.app.feature.usecases.UseCasesScreen
@@ -42,8 +47,6 @@ import com.taskscheduling.app.feature.voice.VoiceScreen
 import com.taskscheduling.app.feature.voice.VoiceViewModel
 import com.taskscheduling.app.automation.AndroidAccessibilityAutomationEngine
 import com.taskscheduling.app.data.repository.WorkflowPersistenceRepository
-import com.taskscheduling.app.feature.wallpaper.WallpaperWorkflowScreen
-import com.taskscheduling.app.feature.wallpaper.WallpaperWorkflowViewModel
 import androidx.compose.ui.platform.LocalContext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -59,19 +62,57 @@ fun AppNavHost(
     automationEngine: MockAutomationEngine,
     realAutomationEngine: AndroidAccessibilityAutomationEngine,
     persistenceRepository: WorkflowPersistenceRepository,
+    navigationTargetState: androidx.compose.runtime.MutableState<NavigationTarget?>? = null,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
+    val notificationScheduler = remember { TaskNotificationScheduler(context) }
+    val activeTaskDraft = remember { androidx.compose.runtime.mutableStateOf<com.taskscheduling.app.domain.model.TaskDraft?>(null) }
+
+    androidx.compose.runtime.LaunchedEffect(navigationTargetState?.value) {
+        when (val target = navigationTargetState?.value) {
+            is NavigationTarget.AddTask -> {
+                activeTaskDraft.value = target.draft
+                navController.navigate(Screen.AddEditTask.createRoute(null))
+                navigationTargetState.value = null
+            }
+            is NavigationTarget.Tasks -> {
+                navController.navigate(Screen.Tasks.route)
+                navigationTargetState.value = null
+            }
+            is NavigationTarget.EditTask -> {
+                navController.navigate(Screen.AddEditTask.createRoute(target.taskId))
+                navigationTargetState.value = null
+            }
+            is NavigationTarget.Diagnostics -> {
+                navController.navigate(Screen.VoiceBotDiagnostics.route)
+                navigationTargetState.value = null
+            }
+            is NavigationTarget.BotSettings -> {
+                navController.navigate(Screen.BotSettings.route)
+                navigationTargetState.value = null
+            }
+            null -> Unit
+        }
+    }
+
     // Shared ViewModels
-    val homeViewModel = remember { HomeViewModel(taskRepository, activityRepository) }
-    val tasksViewModel = remember { TasksViewModel(taskRepository) }
+    val homeViewModel = remember { HomeViewModel(taskRepository, activityRepository, context = context) }
+    val tasksViewModel = remember { TasksViewModel(taskRepository, notificationScheduler) }
     val builderViewModel = remember { BuilderViewModel(taskRepository) }
-    val executionViewModel = remember { ExecutionViewModel(automationEngine, taskRepository, activityRepository) }
+    val executionViewModel = remember { ExecutionViewModel(realAutomationEngine, taskRepository, activityRepository) }
     val voiceViewModel = remember {
         val voiceEngine = MockVoiceEngine { taskRepository.findTaskByVoiceIntent(it) }
-        VoiceViewModel(voiceEngine, taskRepository)
+        VoiceViewModel(voiceEngine, taskRepository, context)
     }
-    val assistantViewModel = remember { AssistantViewModel(taskRepository) }
+    val assistantViewModel = remember {
+        AssistantViewModel(
+            taskRepository = taskRepository,
+            persistenceRepository = persistenceRepository,
+            automationEngine = realAutomationEngine,
+            context = context
+        )
+    }
     val accessibilityViewModel = remember { AccessibilityViewModel(settingsRepository) }
     val familyViewModel = remember { FamilyViewModel(familyRepository) }
     val activityViewModel = remember { ActivityViewModel(activityRepository) }
@@ -100,6 +141,12 @@ fun AppNavHost(
                 },
                 onNavigateToAiPreview = {
                     navController.navigate(Screen.AiPreview.route)
+                },
+                onNavigateToTasks = {
+                    navController.navigate(Screen.Tasks.route)
+                },
+                onNavigateToProfile = {
+                    navController.navigate(Screen.Profile.route)
                 }
             )
         }
@@ -113,23 +160,70 @@ fun AppNavHost(
                 onNavigateToBuilder = { taskId ->
                     navController.navigate(Screen.Builder.createRoute(taskId))
                 },
-                onNavigateToCreateFlow = {
-                    navController.navigate(Screen.CreateTask.route)
+                onNavigateToCreateTask = {
+                    navController.navigate(Screen.CreateWorkflow.route)
+                },
+                onNavigateToEditTask = { taskId ->
+                    navController.navigate(Screen.AddEditTask.createRoute(taskId))
+                },
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
+
+        composable(Screen.CreateWorkflow.route) {
+            CreateWorkflowScreen(
+                workflowPersistenceRepo = persistenceRepository,
+                taskRepository = taskRepository,
+                onNavigateBack = { navController.popBackStack() },
+                onWorkflowSaved = { _ ->
+                    navController.popBackStack()
                 }
             )
         }
 
         composable(Screen.CreateTask.route) {
-            CreateTaskFlowScreen(
+            CreateWorkflowScreen(
+                workflowPersistenceRepo = persistenceRepository,
+                taskRepository = taskRepository,
+                onNavigateBack = { navController.popBackStack() },
+                onWorkflowSaved = { _ ->
+                    navController.popBackStack()
+                }
+            )
+        }
+
+        composable(
+            route = Screen.AddEditTask.route,
+            arguments = listOf(navArgument("taskId") {
+                type = NavType.StringType
+                nullable = true
+                defaultValue = null
+            })
+        ) { backStackEntry ->
+            val taskId = backStackEntry.arguments?.getString("taskId")
+            val allTasks by taskRepository.getTasks().collectAsState(initial = emptyList())
+            val existing = allTasks.find { it.id == taskId }
+
+            AddEditTaskScreen(
+                initialDraft = if (existing == null) activeTaskDraft.value else null,
+                existingTask = existing,
                 onSaveTask = { task ->
                     CoroutineScope(Dispatchers.Main).launch {
                         taskRepository.saveTask(task)
-                        navController.navigate(Screen.Builder.createRoute(task.id)) {
-                            popUpTo(Screen.Tasks.route)
+                        if (task.hasReminder && task.notificationEnabled) {
+                            notificationScheduler.scheduleReminder(task)
                         }
+                        activeTaskDraft.value = null
+                        navController.popBackStack()
                     }
                 },
-                onNavigateBack = { navController.popBackStack() }
+                onNavigateBack = {
+                    activeTaskDraft.value = null
+                    navController.popBackStack()
+                },
+                onNavigateToBuilder = { tid ->
+                    navController.navigate(Screen.Builder.createRoute(tid))
+                }
             )
         }
 
@@ -156,41 +250,14 @@ fun AppNavHost(
             route = Screen.Execution.route,
             arguments = listOf(navArgument("taskId") { type = NavType.StringType })
         ) { backStackEntry ->
-            val taskId = backStackEntry.arguments?.getString("taskId") ?: "task_wallpaper"
-            if (taskId == "task_wallpaper") {
-                val wallpaperViewModel = remember {
-                    WallpaperWorkflowViewModel(
-                        taskRepository = taskRepository,
-                        persistenceRepository = persistenceRepository,
-                        automationEngine = realAutomationEngine,
-                        context = context
-                    )
+            val taskId = backStackEntry.arguments?.getString("taskId") ?: ""
+            ExecutionScreen(
+                viewModel = executionViewModel,
+                taskId = taskId,
+                onNavigateBack = { navController.popBackStack() },
+                onNavigateToBuilder = { tid ->
+                    navController.navigate(Screen.Builder.createRoute(tid))
                 }
-                WallpaperWorkflowScreen(
-                    viewModel = wallpaperViewModel,
-                    onNavigateBack = { navController.popBackStack() }
-                )
-            } else {
-                ExecutionScreen(
-                    viewModel = executionViewModel,
-                    taskId = taskId,
-                    onNavigateBack = { navController.popBackStack() }
-                )
-            }
-        }
-
-        composable(Screen.WallpaperWorkflow.route) {
-            val wallpaperViewModel = remember {
-                WallpaperWorkflowViewModel(
-                    taskRepository = taskRepository,
-                    persistenceRepository = persistenceRepository,
-                    automationEngine = realAutomationEngine,
-                    context = context
-                )
-            }
-            WallpaperWorkflowScreen(
-                viewModel = wallpaperViewModel,
-                onNavigateBack = { navController.popBackStack() }
             )
         }
 
@@ -200,7 +267,10 @@ fun AppNavHost(
                 onNavigateToExecution = { taskId ->
                     navController.navigate(Screen.Execution.createRoute(taskId))
                 },
-                onNavigateBack = { navController.popBackStack() }
+                onNavigateBack = { navController.popBackStack() },
+                onNavigateToDiagnosticCenter = {
+                    navController.navigate(Screen.VoiceBotDiagnostics.route)
+                }
             )
         }
 
@@ -213,7 +283,8 @@ fun AppNavHost(
                 onNavigateToBuilder = { taskId ->
                     navController.navigate(Screen.Builder.createRoute(taskId))
                 },
-                onNavigateBack = { navController.popBackStack() }
+                onNavigateBack = { navController.popBackStack() },
+                onNavigateToSettings = { navController.navigate(Screen.BotSettings.route) }
             )
         }
 
@@ -250,6 +321,15 @@ fun AppNavHost(
                 viewModel = settingsViewModel,
                 onNavigateToOnboarding = {
                     navController.navigate(Screen.Onboarding.route)
+                },
+                onNavigateToDiagnosticCenter = {
+                    navController.navigate(Screen.VoiceBotDiagnostics.route)
+                },
+                onNavigateToBotSettings = {
+                    navController.navigate(Screen.BotSettings.route)
+                },
+                onNavigateToProfile = {
+                    navController.navigate(Screen.Profile.route)
                 }
             )
         }
@@ -279,5 +359,40 @@ fun AppNavHost(
                 onNavigateBack = { navController.popBackStack() }
             )
         }
+
+        composable(Screen.VoiceBotDiagnostics.route) {
+            val diagnosticViewModel = remember {
+                com.taskscheduling.app.feature.diagnostics.VoiceBotDiagnosticViewModel(context)
+            }
+            com.taskscheduling.app.feature.diagnostics.VoiceBotDiagnosticScreen(
+                viewModel = diagnosticViewModel,
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
+
+        composable(Screen.BotSettings.route) {
+            val botSettingsViewModel = remember {
+                com.taskscheduling.app.feature.settings.BotSettingsViewModel(context)
+            }
+            com.taskscheduling.app.feature.settings.BotSettingsScreen(
+                viewModel = botSettingsViewModel,
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
+
+        composable(Screen.Profile.route) {
+            val profileViewModel = remember {
+                com.taskscheduling.app.feature.profile.ProfileViewModel(
+                    settingsRepository = settingsRepository,
+                    taskRepository = taskRepository,
+                    activityRepository = activityRepository
+                )
+            }
+            com.taskscheduling.app.feature.profile.ProfileScreen(
+                viewModel = profileViewModel,
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
     }
 }
+

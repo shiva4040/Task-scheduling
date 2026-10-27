@@ -22,30 +22,30 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowForwardIos
+import androidx.compose.material.icons.automirrored.filled.Send
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AutoAwesome
-import androidx.compose.material.icons.filled.Bluetooth
-import androidx.compose.material.icons.filled.CameraAlt
-import androidx.compose.material.icons.filled.DarkMode
-import androidx.compose.material.icons.filled.FlashlightOn
-import androidx.compose.material.icons.filled.FormatSize
 import androidx.compose.material.icons.filled.Mic
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.Send
-import androidx.compose.material.icons.filled.VolumeUp
-import androidx.compose.material.icons.filled.Wallpaper
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.SmartToy
+import androidx.compose.material.icons.filled.ViewList
 import androidx.compose.material.icons.filled.Wifi
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontFamily
@@ -53,17 +53,12 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.taskscheduling.app.domain.model.Task
-import com.taskscheduling.app.ui.components.TaskCard
-import com.taskscheduling.app.ui.theme.AccentEmerald
-import com.taskscheduling.app.ui.theme.AccentIndigo
-import com.taskscheduling.app.ui.theme.AccentViolet
-import com.taskscheduling.app.ui.theme.BgCardDark
-import com.taskscheduling.app.ui.theme.BorderHighlightDark
-import com.taskscheduling.app.ui.theme.BorderSubtleDark
-import com.taskscheduling.app.ui.theme.DeepCyan
-import com.taskscheduling.app.ui.theme.NeonCyan
-import com.taskscheduling.app.ui.theme.TextPrimaryDark
-import com.taskscheduling.app.ui.theme.TextSecondaryDark
+import com.taskscheduling.app.ui.theme.AppTheme
+import com.taskscheduling.app.ui.theme.Glass3DButton
+import com.taskscheduling.app.ui.theme.GlassCard
+import com.taskscheduling.app.ui.theme.GlassCyan
+import com.taskscheduling.app.ui.theme.GlassEmerald
+import com.taskscheduling.app.ui.theme.GlassIndigo
 
 @Composable
 fun HomeScreen(
@@ -73,78 +68,254 @@ fun HomeScreen(
     onNavigateToVoice: () -> Unit,
     onNavigateToAssistant: () -> Unit,
     onNavigateToAiPreview: () -> Unit,
+    onNavigateToTasks: () -> Unit = {},
+    onNavigateToProfile: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val tasks by viewModel.tasks.collectAsState()
-    val activities by viewModel.activities.collectAsState()
 
-    val favoriteTasks = tasks.filter { it.isFavorite }
-    val recentTasks = tasks.take(4)
+    val colors = AppTheme.colors
+    val recentTasks = tasks.take(5)
 
     LazyColumn(
         modifier = modifier
             .fillMaxSize()
+            .background(colors.background)
             .padding(horizontal = 16.dp),
-        contentPadding = PaddingValues(top = 16.dp, bottom = 24.dp),
-        verticalArrangement = Arrangement.spacedBy(18.dp)
+        contentPadding = PaddingValues(top = 16.dp, bottom = 32.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        // 1. Header Greeting
+        // 1. App Identity Header
         item {
-            Column {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Column {
-                        Text(
-                            text = uiState.greeting,
-                            color = TextPrimaryDark,
-                            fontSize = 24.sp,
-                            fontWeight = FontWeight.Bold
-                        )
-                        Text(
-                            text = "Touchless Phone Automation",
-                            color = NeonCyan,
-                            fontSize = 12.sp,
-                            fontFamily = FontFamily.Monospace
-                        )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column {
+                    Text(
+                        text = "Task Scheduling",
+                        color = colors.textPrimary,
+                        fontSize = 24.sp,
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = (-0.5).sp
+                    )
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(
+                        text = "Your personal automation assistant",
+                        color = colors.textSecondary,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Normal
+                    )
+                }
+
+                // Differentiated Status Pills: Real Network + Local Automation Engine
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    // Real Network Connectivity Status
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(colors.surfaceSecondary)
+                            .border(1.dp, colors.borderSubtle, RoundedCornerShape(12.dp))
+                            .padding(horizontal = 8.dp, vertical = 5.dp)
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(5.dp)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(7.dp)
+                                    .clip(CircleShape)
+                                    .background(if (uiState.isNetworkConnected) GlassEmerald else colors.textTertiary)
+                            )
+                            Text(
+                                text = if (uiState.isNetworkConnected) "ONLINE" else "OFFLINE",
+                                color = if (uiState.isNetworkConnected) GlassEmerald else colors.textSecondary,
+                                fontSize = 9.5.sp,
+                                fontWeight = FontWeight.Bold,
+                                fontFamily = FontFamily.Monospace
+                            )
+                        }
                     }
 
-                    // AI Vision preview teaser button
-                    IconButton(
-                        onClick = onNavigateToAiPreview,
+                    // Local Automation Engine Status
+                    Box(
                         modifier = Modifier
-                            .background(AccentIndigo.copy(alpha = 0.2f), CircleShape)
-                            .border(1.dp, AccentIndigo.copy(alpha = 0.4f), CircleShape)
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(colors.surfaceSecondary)
+                            .border(1.dp, colors.borderSubtle, RoundedCornerShape(12.dp))
+                            .padding(horizontal = 8.dp, vertical = 5.dp)
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.AutoAwesome,
-                            contentDescription = "AI Vision",
-                            tint = AccentViolet
-                        )
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(5.dp)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(7.dp)
+                                    .clip(CircleShape)
+                                    .background(GlassCyan)
+                            )
+                            Text(
+                                text = "LOCAL AI",
+                                color = GlassCyan,
+                                fontSize = 9.5.sp,
+                                fontWeight = FontWeight.Bold,
+                                fontFamily = FontFamily.Monospace
+                            )
+                        }
                     }
                 }
             }
         }
 
-        // 2. Main Command Area
+        // 2. Greeting / User Status Card -> Navigates to dedicated Profile screen
         item {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(BgCardDark, RoundedCornerShape(20.dp))
-                    .border(1.dp, BorderHighlightDark.copy(alpha = 0.4f), RoundedCornerShape(20.dp))
-                    .padding(16.dp)
+            GlassCard(
+                modifier = Modifier.fillMaxWidth(),
+                onClick = onNavigateToProfile
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        // User Avatar
+                        Box(
+                            modifier = Modifier
+                                .size(46.dp)
+                                .clip(CircleShape)
+                                .background(
+                                    Brush.linearGradient(
+                                        listOf(GlassIndigo, GlassCyan)
+                                    )
+                                ),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Person,
+                                contentDescription = "Profile",
+                                tint = Color.White,
+                                modifier = Modifier.size(24.dp)
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.width(12.dp))
+
+                        Column {
+                            Text(
+                                text = uiState.greeting,
+                                color = colors.textPrimary,
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text(
+                                text = "Manage profile & local preferences",
+                                color = colors.textSecondary,
+                                fontSize = 12.5.sp
+                            )
+                        }
+                    }
+
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.ArrowForwardIos,
+                        contentDescription = "Open Profile & Preferences",
+                        tint = colors.textTertiary,
+                        modifier = Modifier.size(14.dp)
+                    )
+                }
+            }
+        }
+
+        // 3. 2x2 Feature Action Cards Grid
+        item {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    HomeActionCard(
+                        title = "Create Workflow",
+                        subtitle = "Build a new automation",
+                        icon = Icons.Default.Add,
+                        iconTint = GlassIndigo,
+                        onClick = { onNavigateToBuilder(null) },
+                        modifier = Modifier.weight(1f)
+                    )
+                    HomeActionCard(
+                        title = "Task Assistant",
+                        subtitle = "Conversational phone bot",
+                        icon = Icons.Default.AutoAwesome,
+                        iconTint = GlassCyan,
+                        onClick = onNavigateToAssistant,
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    HomeActionCard(
+                        title = "My Workflows",
+                        subtitle = "View and manage",
+                        icon = Icons.Default.ViewList,
+                        iconTint = Color(0xFF8B5CF6),
+                        onClick = onNavigateToTasks,
+                        modifier = Modifier.weight(1f)
+                    )
+                    HomeActionCard(
+                        title = "Voice Diagnostics",
+                        subtitle = "Offline engine testing",
+                        icon = Icons.Default.Mic,
+                        iconTint = GlassEmerald,
+                        onClick = onNavigateToVoice,
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+            }
+        }
+
+        // 4. Quick Command Input Card
+        item {
+            GlassCard(
+                modifier = Modifier.fillMaxWidth()
             ) {
                 Column {
-                    Text(
-                        text = "What do you want to do?",
-                        color = TextPrimaryDark,
-                        fontSize = 17.sp,
-                        fontWeight = FontWeight.Bold
-                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "What would you like to do?",
+                            color = colors.textPrimary,
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(6.dp))
+                                .background(colors.surfaceSecondary)
+                                .padding(horizontal = 7.dp, vertical = 2.dp)
+                        ) {
+                            Text(
+                                text = "OFFLINE AI",
+                                color = GlassCyan,
+                                fontSize = 9.5.sp,
+                                fontFamily = FontFamily.Monospace,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
+
                     Spacer(modifier = Modifier.height(10.dp))
 
                     Row(
@@ -154,58 +325,79 @@ fun HomeScreen(
                         OutlinedTextField(
                             value = uiState.commandText,
                             onValueChange = { viewModel.onCommandChange(it) },
-                            placeholder = { Text("Type command (e.g. 'Change wallpaper')...", fontSize = 12.sp) },
+                            placeholder = {
+                                Text(
+                                    "Type command (e.g. 'Open YouTube')...",
+                                    fontSize = 12.5.sp,
+                                    color = colors.textTertiary
+                                )
+                            },
                             modifier = Modifier.weight(1f),
                             shape = RoundedCornerShape(12.dp),
                             singleLine = true,
                             colors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = NeonCyan,
-                                unfocusedBorderColor = BorderSubtleDark,
-                                focusedTextColor = TextPrimaryDark,
-                                unfocusedTextColor = TextPrimaryDark,
-                                focusedContainerColor = Color(0x33000000),
-                                unfocusedContainerColor = Color(0x33000000)
+                                focusedBorderColor = GlassCyan,
+                                unfocusedBorderColor = colors.borderSubtle,
+                                focusedTextColor = colors.textPrimary,
+                                unfocusedTextColor = colors.textPrimary,
+                                focusedContainerColor = colors.surfaceSecondary,
+                                unfocusedContainerColor = colors.surfaceSecondary
                             )
                         )
+
                         Spacer(modifier = Modifier.width(8.dp))
 
                         // Mic Button
-                        IconButton(
-                            onClick = onNavigateToVoice,
+                        Box(
                             modifier = Modifier
-                                .size(48.dp)
-                                .background(DeepCyan, RoundedCornerShape(12.dp))
+                                .size(46.dp)
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(
+                                    Brush.verticalGradient(
+                                        listOf(Color(0xFF38BDF8), Color(0xFF0284C7))
+                                    )
+                                )
+                                .clickable(onClick = onNavigateToVoice),
+                            contentAlignment = Alignment.Center
                         ) {
-                            Icon(imageVector = Icons.Default.Mic, contentDescription = "Voice", tint = Color.White)
+                            Icon(
+                                imageVector = Icons.Default.Mic,
+                                contentDescription = "Voice Listening",
+                                tint = Color.White,
+                                modifier = Modifier.size(20.dp)
+                            )
                         }
 
                         Spacer(modifier = Modifier.width(6.dp))
 
                         // Send Button
-                        IconButton(
-                            onClick = {
-                                uiState.matchedTask?.let { onNavigateToExecution(it.id) }
-                                    ?: onNavigateToAssistant()
-                            },
+                        Box(
                             modifier = Modifier
-                                .size(48.dp)
-                                .background(AccentEmerald, RoundedCornerShape(12.dp))
+                                .size(46.dp)
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(
+                                    Brush.verticalGradient(
+                                        listOf(Color(0xFF10B981), Color(0xFF059669))
+                                    )
+                                )
+                                .clickable {
+                                    uiState.matchedTask?.let { onNavigateToExecution(it.id) }
+                                        ?: onNavigateToAssistant()
+                                },
+                            contentAlignment = Alignment.Center
                         ) {
-                            Icon(imageVector = Icons.Default.Send, contentDescription = "Execute", tint = Color.White)
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.Send,
+                                contentDescription = "Execute Command",
+                                tint = Color.White,
+                                modifier = Modifier.size(18.dp)
+                            )
                         }
                     }
 
-                    Spacer(modifier = Modifier.height(12.dp))
+                    Spacer(modifier = Modifier.height(10.dp))
 
                     // Suggested Commands Horizontal Row
-                    Text(
-                        text = "TRY SAYING:",
-                        color = Color(0xFF64748B),
-                        fontSize = 10.sp,
-                        fontFamily = FontFamily.Monospace,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Spacer(modifier = Modifier.height(6.dp))
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -215,12 +407,18 @@ fun HomeScreen(
                         uiState.suggestedCommands.forEach { cmd ->
                             Box(
                                 modifier = Modifier
-                                    .background(Color(0x2638BDF8), RoundedCornerShape(20.dp))
-                                    .border(1.dp, NeonCyan.copy(alpha = 0.3f), RoundedCornerShape(20.dp))
+                                    .clip(RoundedCornerShape(14.dp))
+                                    .background(colors.surfaceSecondary)
+                                    .border(1.dp, colors.borderSubtle, RoundedCornerShape(14.dp))
                                     .clickable { viewModel.selectSuggestedCommand(cmd) }
-                                    .padding(horizontal = 12.dp, vertical = 6.dp)
+                                    .padding(horizontal = 11.dp, vertical = 5.dp)
                             ) {
-                                Text(text = "\"$cmd\"", color = NeonCyan, fontSize = 12.sp)
+                                Text(
+                                    text = "\"$cmd\"",
+                                    color = GlassCyan,
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Medium
+                                )
                             }
                         }
                     }
@@ -231,12 +429,10 @@ fun HomeScreen(
         // Matched Task Card if found
         uiState.matchedTask?.let { matched ->
             item {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .background(Color(0x3310B981), RoundedCornerShape(16.dp))
-                        .border(1.dp, AccentEmerald, RoundedCornerShape(16.dp))
-                        .padding(14.dp)
+                GlassCard(
+                    modifier = Modifier.fillMaxWidth(),
+                    backgroundColor = colors.surfaceSecondary,
+                    borderBrush = Brush.verticalGradient(listOf(GlassEmerald, GlassEmerald.copy(alpha = 0.3f)))
                 ) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -244,119 +440,222 @@ fun HomeScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Column(modifier = Modifier.weight(1f)) {
-                            Text(text = "TASK MATCHED", color = AccentEmerald, fontSize = 10.sp, fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold)
+                            Text(
+                                text = "TASK MATCHED",
+                                color = GlassEmerald,
+                                fontSize = 9.5.sp,
+                                fontFamily = FontFamily.Monospace,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Text(
+                                text = matched.title,
+                                color = colors.textPrimary,
+                                fontSize = 15.sp,
+                                fontWeight = FontWeight.Bold
+                            )
                             val count = matched.workflow.steps.size
-                            Text(text = if (count == 1) "1 action" else "$count actions", color = TextSecondaryDark, fontSize = 12.sp)
+                            Text(
+                                text = if (count == 1) "1 action step" else "$count action steps",
+                                color = colors.textSecondary,
+                                fontSize = 12.sp
+                            )
                         }
-                        Button(
+
+                        Glass3DButton(
+                            text = "Run Now",
+                            icon = Icons.Default.PlayArrow,
                             onClick = { onNavigateToExecution(matched.id) },
-                            colors = ButtonDefaults.buttonColors(containerColor = AccentEmerald),
-                            shape = RoundedCornerShape(10.dp)
-                        ) {
-                            Icon(imageVector = Icons.Default.PlayArrow, contentDescription = null, modifier = Modifier.size(16.dp))
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text("Run Now", fontSize = 12.sp)
-                        }
+                            minHeight = 38.dp
+                        )
                     }
                 }
             }
         }
 
-        // 3. Quick Actions Section
+        // 5. Recent Workflows Section
         item {
-            Column {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
                 Text(
-                    text = "QUICK ACTIONS",
-                    color = TextSecondaryDark,
-                    fontSize = 11.sp,
-                    fontFamily = FontFamily.Monospace,
+                    text = "Recent Workflows",
+                    color = colors.textPrimary,
+                    fontSize = 17.sp,
                     fontWeight = FontWeight.Bold
                 )
-                Spacer(modifier = Modifier.height(10.dp))
-
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .horizontalScroll(rememberScrollState()),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                TextButton(
+                    onClick = onNavigateToTasks,
+                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp)
                 ) {
-                    QuickActionChip("Wallpaper", Icons.Default.Wallpaper, "task_wallpaper", onNavigateToExecution)
-                    QuickActionChip("Dark Mode", Icons.Default.DarkMode, "task_dark_mode", onNavigateToExecution)
-                    QuickActionChip("Text Size", Icons.Default.FormatSize, "task_text_size", onNavigateToExecution)
-                    QuickActionChip("Wi-Fi", Icons.Default.Wifi, "task_wifi", onNavigateToExecution)
-                    QuickActionChip("Bluetooth", Icons.Default.Bluetooth, "task_bluetooth", onNavigateToExecution)
-                    QuickActionChip("Volume", Icons.Default.VolumeUp, "task_volume", onNavigateToExecution)
-                    QuickActionChip("Camera", Icons.Default.CameraAlt, "task_camera", onNavigateToExecution)
+                    Text(
+                        text = "See all",
+                        color = GlassIndigo,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
                 }
             }
         }
 
-        // 4. Favorites Section
-        if (favoriteTasks.isNotEmpty()) {
-            item {
-                Text(
-                    text = "FAVORITE TASKS",
-                    color = TextSecondaryDark,
-                    fontSize = 11.sp,
-                    fontFamily = FontFamily.Monospace,
-                    fontWeight = FontWeight.Bold
-                )
-            }
-
-            items(favoriteTasks) { task ->
-                TaskCard(
-                    task = task,
-                    onRunTask = { onNavigateToExecution(task.id) },
-                    onEditTask = { onNavigateToBuilder(task.id) },
-                    onToggleFavorite = { viewModel.toggleFavorite(task.id) },
-                    onDeleteTask = {},
-                    onDuplicateTask = {}
-                )
-            }
-        }
-
-        // 5. Recent Tasks Section
-        item {
-            Text(
-                text = "RECENT TASKS",
-                color = TextSecondaryDark,
-                fontSize = 11.sp,
-                fontFamily = FontFamily.Monospace,
-                fontWeight = FontWeight.Bold
-            )
-        }
-
-        items(recentTasks) { task ->
-            TaskCard(
+        // Compact Workflow Rows
+        items(recentTasks, key = { it.id }) { task ->
+            RecentWorkflowCompactRow(
                 task = task,
-                onRunTask = { onNavigateToExecution(task.id) },
-                onEditTask = { onNavigateToBuilder(task.id) },
-                onToggleFavorite = { viewModel.toggleFavorite(task.id) },
-                onDeleteTask = {},
-                onDuplicateTask = {}
+                onRun = { onNavigateToExecution(task.id) },
+                onEdit = { onNavigateToBuilder(task.id) }
             )
         }
     }
 }
 
 @Composable
-private fun QuickActionChip(
+private fun HomeActionCard(
     title: String,
+    subtitle: String,
     icon: ImageVector,
-    taskId: String,
-    onRunTask: (String) -> Unit
+    iconTint: Color,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
+    val colors = AppTheme.colors
+
+    Box(
+        modifier = modifier
+            .clip(RoundedCornerShape(16.dp))
+            .background(colors.surface)
+            .border(1.dp, colors.borderSubtle, RoundedCornerShape(16.dp))
+            .clickable(onClick = onClick)
+            .padding(14.dp)
+    ) {
+        Column {
+            Box(
+                modifier = Modifier
+                    .size(36.dp)
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(iconTint.copy(alpha = 0.15f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    tint = iconTint,
+                    modifier = Modifier.size(19.dp)
+                )
+            }
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            Text(
+                text = title,
+                color = colors.textPrimary,
+                fontSize = 13.5.sp,
+                fontWeight = FontWeight.Bold
+            )
+
+            Spacer(modifier = Modifier.height(2.dp))
+
+            Text(
+                text = subtitle,
+                color = colors.textSecondary,
+                fontSize = 11.5.sp,
+                lineHeight = 15.sp
+            )
+        }
+    }
+}
+
+@Composable
+private fun RecentWorkflowCompactRow(
+    task: Task,
+    onRun: () -> Unit,
+    onEdit: () -> Unit
+) {
+    val colors = AppTheme.colors
+
+    val icon = when {
+        task.title.contains("YouTube", ignoreCase = true) -> Icons.Default.PlayArrow
+        task.title.contains("Settings", ignoreCase = true) -> Icons.Default.Settings
+        task.title.contains("Wi-Fi", ignoreCase = true) -> Icons.Default.Wifi
+        else -> Icons.Default.AutoAwesome
+    }
+
+    val iconColor = when {
+        task.title.contains("YouTube", ignoreCase = true) -> Color(0xFFEF4444)
+        task.title.contains("Settings", ignoreCase = true) -> GlassCyan
+        task.title.contains("Wi-Fi", ignoreCase = true) -> GlassEmerald
+        else -> Color(0xFF8B5CF6)
+    }
+
     Box(
         modifier = Modifier
-            .background(BgCardDark, RoundedCornerShape(14.dp))
-            .border(1.dp, BorderSubtleDark, RoundedCornerShape(14.dp))
-            .clickable { onRunTask(taskId) }
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(14.dp))
+            .background(colors.surface)
+            .border(1.dp, colors.borderSubtle, RoundedCornerShape(14.dp))
+            .clickable(onClick = onEdit)
             .padding(horizontal = 14.dp, vertical = 10.dp)
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Icon(imageVector = icon, contentDescription = title, tint = NeonCyan, modifier = Modifier.size(16.dp))
-            Spacer(modifier = Modifier.width(8.dp))
-            Text(text = title, color = TextPrimaryDark, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.weight(1f)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(38.dp)
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(iconColor.copy(alpha = 0.15f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = icon,
+                        contentDescription = null,
+                        tint = iconColor,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+
+                Spacer(modifier = Modifier.width(12.dp))
+
+                Column {
+                    Text(
+                        text = task.title,
+                        color = colors.textPrimary,
+                        fontSize = 13.5.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    Spacer(modifier = Modifier.height(2.dp))
+                    val stepCount = task.workflow.steps.size
+                    Text(
+                        text = if (stepCount == 1) "1 step" else "$stepCount steps",
+                        color = colors.textSecondary,
+                        fontSize = 11.5.sp
+                    )
+                }
+            }
+
+            // Circular Play Button
+            Box(
+                modifier = Modifier
+                    .size(34.dp)
+                    .clip(CircleShape)
+                    .background(GlassIndigo)
+                    .clickable(onClick = onRun),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.PlayArrow,
+                    contentDescription = "Run Workflow",
+                    tint = Color.White,
+                    modifier = Modifier.size(18.dp)
+                )
+            }
         }
     }
 }

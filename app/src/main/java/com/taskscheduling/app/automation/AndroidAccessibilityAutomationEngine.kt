@@ -220,6 +220,19 @@ class AndroidAccessibilityAutomationEngine(
             return
         }
 
+        if (workflow.steps.isEmpty()) {
+            _executionSession.value = ExecutionSession(
+                taskId = workflow.id,
+                taskTitle = workflow.name,
+                state = ExecutionState.IDLE,
+                currentStepIndex = 0,
+                totalSteps = 0,
+                progress = 0f,
+                errorMessage = "Workflow has no automation steps configured."
+            )
+            return
+        }
+
         isStopped = false
         isPaused = false
 

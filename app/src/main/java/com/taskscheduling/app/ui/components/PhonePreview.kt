@@ -33,8 +33,8 @@ import androidx.compose.material.icons.filled.Message
 import androidx.compose.material.icons.filled.NetworkWifi
 import androidx.compose.material.icons.filled.Phone
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Apps
 import androidx.compose.material.icons.filled.VolumeUp
-import androidx.compose.material.icons.filled.Wallpaper
 import androidx.compose.material.icons.filled.Wifi
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -175,7 +175,7 @@ fun PhonePreview(
                     when (currentScreen) {
                         "Settings" -> SettingsScreenPreview()
                         "Display" -> DisplayScreenPreview()
-                        "Wallpaper" -> WallpaperScreenPreview()
+                        "Apps" -> AppsScreenPreview()
                         "Wifi" -> WifiScreenPreview()
                         "Phone" -> PhoneCallScreenPreview()
                         "QuickSettings" -> QuickSettingsDrawerPreview()
@@ -349,7 +349,7 @@ private fun SettingsScreenPreview() {
 
         SettingsItemRow("Network & internet", "Wi-Fi (Home_5G)", Icons.Default.Wifi, DeepCyan)
         SettingsItemRow("Display", "Dark theme, Font: Normal", Icons.Default.DisplaySettings, AccentAmber)
-        SettingsItemRow("Wallpaper & style", "Sunset Gold preset", Icons.Default.Wallpaper, AccentViolet)
+        SettingsItemRow("Apps & notifications", "Permissions, Default apps", Icons.Default.Apps, AccentViolet)
         SettingsItemRow("Sound & vibration", "Volume, Haptics", Icons.Default.VolumeUp, AccentRose)
         SettingsItemRow("Accessibility", "Touchless, Large controls", Icons.Default.FormatSize, AccentEmerald)
     }
@@ -454,7 +454,7 @@ private fun DisplayScreenPreview() {
 }
 
 @Composable
-private fun WallpaperScreenPreview() {
+private fun AppsScreenPreview() {
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -462,56 +462,22 @@ private fun WallpaperScreenPreview() {
             .padding(12.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
-        Text("Wallpaper & Style", color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+        Text("Apps & Notifications", color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold)
 
-        // Mock Phone Screen Preview
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(130.dp)
-                .background(
-                    Brush.verticalGradient(listOf(Color(0xFF4C0519), Color(0xFF78350F))),
-                    RoundedCornerShape(14.dp)
-                )
-                .padding(8.dp),
-            contentAlignment = Alignment.BottomStart
-        ) {
-            Text(
-                text = "Sunset Gold Applied",
-                color = Color.White,
-                fontSize = 10.sp,
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier
-                    .background(Color(0x99000000), RoundedCornerShape(8.dp))
-                    .padding(horizontal = 6.dp, vertical = 2.dp)
-            )
-        }
-
-        Text("Select Palette Preset", color = Color(0xFF94A3B8), fontSize = 11.sp)
-
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            Box(
-                modifier = Modifier
-                    .weight(1f)
-                    .height(60.dp)
-                    .background(Brush.linearGradient(listOf(Color(0xFF062B3A), Color(0xFF064E3B))), RoundedCornerShape(8.dp))
-            )
-            Box(
-                modifier = Modifier
-                    .weight(1f)
-                    .height(60.dp)
-                    .border(2.dp, NeonCyan, RoundedCornerShape(8.dp))
-                    .background(Brush.linearGradient(listOf(Color(0xFF4C0519), Color(0xFF78350F))), RoundedCornerShape(8.dp))
-            )
-            Box(
-                modifier = Modifier
-                    .weight(1f)
-                    .height(60.dp)
-                    .background(Brush.linearGradient(listOf(Color(0xFF030712), Color(0xFF4C1D95))), RoundedCornerShape(8.dp))
-            )
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            listOf("Task Scheduling", "YouTube", "Chrome", "Camera").forEach { appName ->
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(Color(0xFF1E293B), RoundedCornerShape(8.dp))
+                        .padding(10.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(appName, color = Color.White, fontSize = 12.sp)
+                    Text("Installed", color = Color(0xFF94A3B8), fontSize = 10.sp)
+                }
+            }
         }
     }
 }

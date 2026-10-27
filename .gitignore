@@ -13,3 +13,14 @@ build/
 .cxx
 *.apk
 *.aab
+*.bin
+/dev-assets/whisper/
+dev-assets/whisper/
+
+# Root temporary test & scratch files
+/*.wav
+/*.onnx
+/*.so
+/jni/
+/scratch/
+/temp_2023_06_26/

@@ -14,25 +14,51 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
 data class HomeUiState(
-    val greeting: String = "Good evening, Shiva",
+    val greeting: String = getDynamicGreeting(),
     val commandText: String = "",
     val suggestedCommands: List<String> = listOf(
-        "Change wallpaper",
+        "Open YouTube",
         "Turn on dark mode",
         "Increase text size",
         "Open Wi-Fi",
         "Start study mode"
     ),
-    val matchedTask: Task? = null
+    val matchedTask: Task? = null,
+    val isNetworkConnected: Boolean = true,
+    val networkLabel: String = "Network Connected"
 )
+
+private fun getDynamicGreeting(userName: String = "Shiva"): String {
+    val hour = java.util.Calendar.getInstance().get(java.util.Calendar.HOUR_OF_DAY)
+    val period = when {
+        hour in 5..11 -> "Good morning"
+        hour in 12..16 -> "Good afternoon"
+        else -> "Good evening"
+    }
+    return "$period, $userName"
+}
 
 class HomeViewModel(
     private val taskRepository: TaskRepository,
-    private val activityRepository: ActivityRepository
+    private val activityRepository: ActivityRepository,
+    context: android.content.Context? = null
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(HomeUiState())
     val uiState: StateFlow<HomeUiState> = _uiState.asStateFlow()
+
+    init {
+        context?.let { ctx ->
+            viewModelScope.launch {
+                com.taskscheduling.app.util.NetworkConnectivityMonitor.getInstance(ctx).networkStatus.collect { status ->
+                    _uiState.value = _uiState.value.copy(
+                        isNetworkConnected = status.isConnected,
+                        networkLabel = status.displayLabel
+                    )
+                }
+            }
+        }
+    }
 
     val tasks: StateFlow<List<Task>> = taskRepository.getTasks()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())

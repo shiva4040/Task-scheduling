@@ -203,6 +203,7 @@ fun CreateTaskFlowScreen(
                             Text(text = type.displayName, color = TextPrimaryDark, fontSize = 15.sp, fontWeight = FontWeight.Bold)
                             Text(
                                 text = when (type) {
+                                    TaskType.STANDARD_TASK -> "Manage to-dos, due dates, checklists, and offline reminders."
                                     TaskType.COORDINATE_WORKFLOW -> "Execute precise sequential screen touch coordinates."
                                     TaskType.SCHEDULED_TASK -> "Runs automatically at a specific time of day."
                                     TaskType.VOICE_COMMAND -> "Triggers instantly when speaking keyword."

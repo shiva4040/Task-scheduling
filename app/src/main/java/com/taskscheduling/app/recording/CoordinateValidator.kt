@@ -58,6 +58,13 @@ object CoordinateValidator {
                     return ValidationResult.Invalid("Step ${step.order}: swipe duration too short (${step.duration} ms, minimum 50 ms).")
                 }
             }
+            ActionType.TEXT_INPUT -> {
+                // Text input can optionally target specific coordinates
+                if (step.startX >= 0 && step.startY >= 0) {
+                    val pointCheck = validateCoordinate(step.startX, step.startY, screenWidth, screenHeight)
+                    if (!pointCheck.isValid) return pointCheck
+                }
+            }
             ActionType.WAIT -> {
                 if (step.duration <= 0) {
                     return ValidationResult.Invalid("Step ${step.order}: wait duration must be greater than 0 ms (was ${step.duration} ms).")
