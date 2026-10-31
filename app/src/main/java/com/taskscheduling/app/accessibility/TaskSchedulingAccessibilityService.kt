@@ -142,6 +142,9 @@ class TaskSchedulingAccessibilityService : AccessibilityService() {
         if (event == null) return
 
         if (RecordingManager.isRecording.value && RecordingManager.enableNodeClickAutoDetect) {
+            // Ignore events originating from our own app overlays to avoid recording toolbar clicks
+            if (event.packageName == packageName) return
+
             when (event.eventType) {
                 AccessibilityEvent.TYPE_VIEW_CLICKED -> {
                     try {
@@ -151,7 +154,8 @@ class TaskSchedulingAccessibilityService : AccessibilityService() {
                         if (!rect.isEmpty && rect.width() > 0 && rect.height() > 0) {
                             val cx = rect.centerX()
                             val cy = rect.centerY()
-                            RecordingManager.recordTap(cx, cy)
+                            val label = (node.text ?: node.contentDescription ?: "").toString().trim()
+                            RecordingManager.recordTap(cx, cy, label)
                         }
                     } catch (e: Exception) {
                         e.printStackTrace()
@@ -165,7 +169,8 @@ class TaskSchedulingAccessibilityService : AccessibilityService() {
                         if (!rect.isEmpty && rect.width() > 0 && rect.height() > 0) {
                             val cx = rect.centerX()
                             val cy = rect.centerY()
-                            RecordingManager.recordLongPress(cx, cy, 900L)
+                            val label = (node.text ?: node.contentDescription ?: "").toString().trim()
+                            RecordingManager.recordLongPress(cx, cy, 900L, label)
                         }
                     } catch (e: Exception) {
                         e.printStackTrace()

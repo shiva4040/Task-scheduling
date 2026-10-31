@@ -9,6 +9,7 @@ import com.taskscheduling.app.domain.model.ScheduleItem
 import com.taskscheduling.app.domain.model.Task
 import com.taskscheduling.app.domain.model.TaskCategory
 import com.taskscheduling.app.domain.model.TaskStatus
+import com.taskscheduling.app.domain.model.TaskType
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -49,11 +50,26 @@ class TaskRepositoryImpl(
 
     override suspend fun getTaskById(id: String): Task? {
         if (taskPersistence != null) {
-            return taskPersistence.getTaskById(id)
+            val fromPersistence = taskPersistence.getTaskById(id)
+            if (fromPersistence != null) return fromPersistence
         }
-        val task = _tasks.value.find { it.id == id } ?: return null
-        val persistedWf = workflowPersistence?.getWorkflow(task.workflow.id)
-        return if (persistedWf != null) task.copy(workflow = persistedWf) else task
+        val task = _tasks.value.find { it.id == id || (id != "wf_empty" && it.workflow.id == id) }
+        if (task != null) {
+            val persistedWf = workflowPersistence?.getWorkflow(task.workflow.id)
+            return if (persistedWf != null) task.copy(workflow = persistedWf) else task
+        }
+        val wf = workflowPersistence?.getWorkflow(id)
+        if (wf != null) {
+            return Task(
+                id = wf.id,
+                title = wf.name,
+                description = wf.description,
+                category = TaskCategory.CUSTOM,
+                type = TaskType.COORDINATE_WORKFLOW,
+                workflow = wf
+            )
+        }
+        return null
     }
 
     override suspend fun saveTask(task: Task) {
@@ -62,7 +78,9 @@ class TaskRepositoryImpl(
             _tasks.value = taskPersistence.tasks.value
             return
         }
-        workflowPersistence?.saveWorkflow(task.workflow)
+        if (task.workflow.id.isNotBlank() && task.workflow.id != "wf_empty") {
+            workflowPersistence?.saveWorkflow(task.workflow)
+        }
         _tasks.update { list ->
             val idx = list.indexOfFirst { it.id == task.id }
             if (idx >= 0) {

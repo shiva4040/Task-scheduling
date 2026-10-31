@@ -100,7 +100,7 @@ fun AppNavHost(
     val homeViewModel = remember { HomeViewModel(taskRepository, activityRepository, context = context) }
     val tasksViewModel = remember { TasksViewModel(taskRepository, notificationScheduler) }
     val builderViewModel = remember { BuilderViewModel(taskRepository) }
-    val executionViewModel = remember { ExecutionViewModel(realAutomationEngine, taskRepository, activityRepository) }
+    val executionViewModel = remember { ExecutionViewModel(realAutomationEngine, taskRepository, activityRepository, persistenceRepository) }
     val voiceViewModel = remember {
         val voiceEngine = MockVoiceEngine { taskRepository.findTaskByVoiceIntent(it) }
         VoiceViewModel(voiceEngine, taskRepository, context)

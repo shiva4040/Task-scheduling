@@ -420,6 +420,52 @@ class AccessibilityOverlayManager(private val context: Context) {
             }
             actionRow.addView(btnHome)
 
+            // 🗂 Recents
+            val btnRecents = createPillButton("🗂 Recents", Color.parseColor("#1E293B"), Color.parseColor("#A78BFA")) {
+                RecordingManager.recordRecents()
+                val c = RecordingManager.recordedSteps.value.size
+                stepCountText.text = " • $c step" + (if (c != 1) "s" else "")
+                guideText.text = "Recorded Recents navigation"
+            }
+            actionRow.addView(btnRecents)
+
+            // ↓ Scroll
+            val btnScrollDown = createPillButton("↓ Scroll", Color.parseColor("#1E293B"), Color.parseColor("#38BDF8")) {
+                RecordingManager.recordScroll(isUp = true)
+                val c = RecordingManager.recordedSteps.value.size
+                stepCountText.text = " • $c step" + (if (c != 1) "s" else "")
+                guideText.text = "Recorded Scroll Down"
+            }
+            actionRow.addView(btnScrollDown)
+
+            // ↑ Scroll Up
+            val btnScrollUp = createPillButton("↑ Scroll", Color.parseColor("#1E293B"), Color.parseColor("#38BDF8")) {
+                RecordingManager.recordScroll(isUp = false)
+                val c = RecordingManager.recordedSteps.value.size
+                stepCountText.text = " • $c step" + (if (c != 1) "s" else "")
+                guideText.text = "Recorded Scroll Up"
+            }
+            actionRow.addView(btnScrollUp)
+
+            // ✋ Drag
+            val btnDrag = createPillButton("✋ Drag", Color.parseColor("#1E293B"), Color.parseColor("#F472B6")) {
+                guideText.text = "Drag mode: Drag from source to target"
+                showSwipeCaptureOverlay(
+                    onSwipeCaptured = { sx, sy, ex, ey, dur ->
+                        RecordingManager.recordDrag(sx, sy, ex, ey, dur.coerceAtLeast(600L))
+                        showTouchDot(sx, sy, "DRAG START ($sx, $sy)")
+                        showTouchDot(ex, ey, "DROP ($ex, $ey)")
+                        val c = RecordingManager.recordedSteps.value.size
+                        stepCountText.text = " • $c step" + (if (c != 1) "s" else "")
+                        guideText.text = "Recorded Drag ($sx, $sy) → ($ex, $ey)"
+                    },
+                    onCancelled = {
+                        guideText.text = "Drag recording cancelled"
+                    }
+                )
+            }
+            actionRow.addView(btnDrag)
+
             actionScroll.addView(actionRow)
             panel.addView(actionScroll)
 

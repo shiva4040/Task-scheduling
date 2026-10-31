@@ -95,13 +95,12 @@ object CoordinateValidator {
             return ValidationResult.Invalid("Workflow must contain at least one step.")
         }
 
-        val device = workflow.deviceProfile
-        if (device == null || device.screenWidth <= 0 || device.screenHeight <= 0) {
+        val effectiveWidth = if (screenWidth > 0) screenWidth else (workflow.deviceProfile?.screenWidth ?: 0)
+        val effectiveHeight = if (screenHeight > 0) screenHeight else (workflow.deviceProfile?.screenHeight ?: 0)
+
+        if (effectiveWidth <= 0 || effectiveHeight <= 0) {
             return ValidationResult.Invalid("Valid device profile with screen dimensions is required.")
         }
-
-        val effectiveWidth = if (screenWidth > 0) screenWidth else device.screenWidth
-        val effectiveHeight = if (screenHeight > 0) screenHeight else device.screenHeight
 
         for (step in workflow.steps) {
             val stepResult = validateStep(step, effectiveWidth, effectiveHeight)

@@ -263,7 +263,7 @@ object RecordingManager {
     /**
      * Records a physical tap coordinate.
      */
-    fun recordTap(x: Int, y: Int) {
+    fun recordTap(x: Int, y: Int, label: String? = null) {
         if (_sessionState.value != SessionState.RECORDING) return
         if (isDuplicateEvent(ActionType.TAP, x, y)) return
 
@@ -274,6 +274,7 @@ object RecordingManager {
         }
 
         val stepIndex = _recordedSteps.value.size + 1
+        val stepLabel = if (!label.isNullOrBlank()) label else "Tap"
         val newStep = WorkflowStep(
             id = UUID.randomUUID().toString(),
             order = stepIndex,
@@ -282,9 +283,9 @@ object RecordingManager {
             startY = y,
             duration = 100L,
             waitAfter = 500L,
-            description = "Tap at ($x, $y)",
+            description = if (!label.isNullOrBlank()) "Tap \"$label\" at ($x, $y)" else "Tap at ($x, $y)",
             stepNumber = stepIndex,
-            label = "Tap",
+            label = stepLabel,
             actionType = ActionType.TAP,
             coordinate = CoordinateAction(x, y)
         )
@@ -292,13 +293,13 @@ object RecordingManager {
         _recordedSteps.value = _recordedSteps.value + newStep
         persistCurrentSession()
 
-        TaskSchedulingAccessibilityService.instance?.showVisualTouchDot(x, y, "TAP X: $x, Y: $y")
+        TaskSchedulingAccessibilityService.instance?.showVisualTouchDot(x, y, "TAP: $stepLabel ($x, $y)")
     }
 
     /**
      * Records a long press action.
      */
-    fun recordLongPress(x: Int, y: Int, durationMs: Long = 900L) {
+    fun recordLongPress(x: Int, y: Int, durationMs: Long = 900L, label: String? = null) {
         if (_sessionState.value != SessionState.RECORDING) return
         if (isDuplicateEvent(ActionType.LONG_PRESS, x, y)) return
 
@@ -309,6 +310,7 @@ object RecordingManager {
         }
 
         val stepIndex = _recordedSteps.value.size + 1
+        val stepLabel = if (!label.isNullOrBlank()) label else "Long Press"
         val newStep = WorkflowStep(
             id = UUID.randomUUID().toString(),
             order = stepIndex,
@@ -317,9 +319,9 @@ object RecordingManager {
             startY = y,
             duration = durationMs,
             waitAfter = 500L,
-            description = "Long press at ($x, $y) [${durationMs}ms]",
+            description = if (!label.isNullOrBlank()) "Long press \"$label\" at ($x, $y) [${durationMs}ms]" else "Long press at ($x, $y) [${durationMs}ms]",
             stepNumber = stepIndex,
-            label = "Long Press",
+            label = stepLabel,
             actionType = ActionType.LONG_PRESS,
             coordinate = CoordinateAction(x, y)
         )
@@ -493,6 +495,101 @@ object RecordingManager {
             label = if (isUp) "Scroll Down" else "Scroll Up",
             actionType = ActionType.SWIPE,
             coordinate = CoordinateAction(midX, startY, midX, endY)
+        )
+
+        _recordedSteps.value = _recordedSteps.value + newStep
+        persistCurrentSession()
+    }
+
+    /**
+     * Records a drag and drop action.
+     */
+    fun recordDrag(startX: Int, startY: Int, endX: Int, endY: Int, durationMs: Long = 800L) {
+        if (_sessionState.value != SessionState.RECORDING) return
+        if (isDuplicateEvent(ActionType.DRAG, startX, startY)) return
+
+        val profile = activeDeviceProfile
+        if (profile != null) {
+            val startCheck = CoordinateValidator.validateCoordinate(startX, startY, profile.screenWidth, profile.screenHeight)
+            val endCheck = CoordinateValidator.validateCoordinate(endX, endY, profile.screenWidth, profile.screenHeight)
+            if (!startCheck.isValid || !endCheck.isValid) return
+        }
+
+        val stepIndex = _recordedSteps.value.size + 1
+        val newStep = WorkflowStep(
+            id = UUID.randomUUID().toString(),
+            order = stepIndex,
+            type = ActionType.DRAG,
+            startX = startX,
+            startY = startY,
+            endX = endX,
+            endY = endY,
+            duration = durationMs,
+            waitAfter = 500L,
+            description = "Drag ($startX, $startY) → ($endX, $endY)",
+            stepNumber = stepIndex,
+            label = "Drag",
+            actionType = ActionType.DRAG,
+            coordinate = CoordinateAction(startX, startY, endX, endY)
+        )
+
+        _recordedSteps.value = _recordedSteps.value + newStep
+        persistCurrentSession()
+        TaskSchedulingAccessibilityService.instance?.showVisualTouchDot(startX, startY, "DRAG START")
+    }
+
+    /**
+     * Records a double tap action.
+     */
+    fun recordDoubleTap(x: Int, y: Int) {
+        if (_sessionState.value != SessionState.RECORDING) return
+        if (isDuplicateEvent(ActionType.DOUBLE_TAP, x, y)) return
+
+        val profile = activeDeviceProfile
+        if (profile != null) {
+            val check = CoordinateValidator.validateCoordinate(x, y, profile.screenWidth, profile.screenHeight)
+            if (!check.isValid) return
+        }
+
+        val stepIndex = _recordedSteps.value.size + 1
+        val newStep = WorkflowStep(
+            id = UUID.randomUUID().toString(),
+            order = stepIndex,
+            type = ActionType.DOUBLE_TAP,
+            startX = x,
+            startY = y,
+            duration = 100L,
+            waitAfter = 500L,
+            description = "Double tap at ($x, $y)",
+            stepNumber = stepIndex,
+            label = "Double Tap",
+            actionType = ActionType.DOUBLE_TAP,
+            coordinate = CoordinateAction(x, y)
+        )
+
+        _recordedSteps.value = _recordedSteps.value + newStep
+        persistCurrentSession()
+        TaskSchedulingAccessibilityService.instance?.showVisualTouchDot(x, y, "DOUBLE TAP X: $x, Y: $y")
+    }
+
+    /**
+     * Records a recent apps overview navigation action.
+     */
+    fun recordRecents() {
+        if (_sessionState.value != SessionState.RECORDING) return
+        if (isDuplicateEvent(ActionType.RECENTS)) return
+
+        val stepIndex = _recordedSteps.value.size + 1
+        val newStep = WorkflowStep(
+            id = UUID.randomUUID().toString(),
+            order = stepIndex,
+            type = ActionType.RECENTS,
+            duration = 100L,
+            waitAfter = 500L,
+            description = "Recent Apps",
+            stepNumber = stepIndex,
+            label = "Recent Apps",
+            actionType = ActionType.RECENTS
         )
 
         _recordedSteps.value = _recordedSteps.value + newStep
@@ -751,10 +848,17 @@ object RecordingManager {
             schemaVersion = 1
         )
 
+        val validation = com.taskscheduling.app.domain.validation.WorkflowValidator.validateWorkflow(finalWorkflow)
+        if (!validation.isValid) {
+            android.util.Log.e("RecordingManager", "Validation failed: ${(validation as? com.taskscheduling.app.domain.validation.WorkflowValidationResult.Invalid)?.message}")
+            return null
+        }
+
         persistenceRepo?.saveWorkflow(finalWorkflow)
 
         if (taskRepo != null) {
-            val task = Task(
+            val existingTask = taskRepo.getTaskById(finalWorkflow.id)
+            val task = (existingTask ?: Task(
                 id = finalWorkflow.id,
                 title = cleanName,
                 description = description.trim(),
@@ -765,6 +869,11 @@ object RecordingManager {
                 workflow = finalWorkflow,
                 isEnabled = true,
                 createdAt = sessionStartTime,
+                updatedAt = now
+            )).copy(
+                title = cleanName,
+                description = description.trim(),
+                workflow = finalWorkflow,
                 updatedAt = now
             )
             taskRepo.saveTask(task)
